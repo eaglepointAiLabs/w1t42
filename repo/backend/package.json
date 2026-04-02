@@ -1,0 +1,37 @@
+{
+  "name": "trailforge-backend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "worker": "node src/worker.js",
+    "build": "node -e \"console.log('No build step required for backend scaffold')\"",
+    "test": "vitest run --exclude tests/**/*.integration.test.js",
+    "test:integration": "node scripts/run-integration-tests.js",
+    "test:integration:db": "node scripts/run-integration-tests.js",
+    "migrate": "node scripts/migrate.js up",
+    "migrate:up": "node scripts/migrate.js up",
+    "migrate:down": "node scripts/migrate.js down",
+    "seed": "node scripts/seed.js"
+  },
+  "dependencies": {
+    "@koa/cors": "^5.0.0",
+    "@koa/router": "^13.1.0",
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.7",
+    "koa": "^2.15.3",
+    "koa-bodyparser": "^4.4.1",
+    "koa-helmet": "^8.0.1",
+    "mysql2": "^3.11.5",
+    "pino": "^9.5.0",
+    "pino-http": "^10.3.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9",
+    "supertest": "^7.0.0",
+    "vitest": "^2.1.8"
+  }
+}

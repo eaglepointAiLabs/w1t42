@@ -1,0 +1,5 @@
+{
+  "watch": ["src", "scripts", "migrations", "seeds"],
+  "ext": "js,json",
+  "exec": "node src/server.js"
+}
