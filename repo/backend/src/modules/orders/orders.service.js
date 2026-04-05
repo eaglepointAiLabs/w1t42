@@ -13,6 +13,10 @@ async function createOrder({ userId, courseServiceId, orderType, totalAmountDoll
 
     const [existingRows] = await connection.query("SELECT * FROM orders WHERE idempotency_key = ? LIMIT 1", [idempotencyKey]);
     if (existingRows.length) {
+      if (existingRows[0].user_id !== userId) {
+        await connection.rollback();
+        throw new ApiError(409, "IDEMPOTENCY_KEY_CONFLICT", "Idempotency key already used by another user");
+      }
       await connection.commit();
       return existingRows[0];
     }

@@ -16,6 +16,10 @@ const writeAuditEventMock = vi.fn(async () => {});
 const validPassword = "good-password-123";
 const validPasswordHash = bcrypt.hashSync(validPassword, 4);
 
+// Stateful in-memory store for mocked rate_limit_counters table.
+// Simulates ON DUPLICATE KEY UPDATE logic for fixed-window counters.
+const rateLimitCounters = new Map();
+
 const connectionMock = {
   beginTransaction: vi.fn(async () => {}),
   commit: vi.fn(async () => {}),
@@ -46,6 +50,32 @@ const connectionMock = {
 
 const poolMock = {
   query: vi.fn(async (sql, params) => {
+    // Rate limit counter: atomic upsert (INSERT ... ON DUPLICATE KEY UPDATE)
+    if (sql.includes("rate_limit_counters") && sql.includes("INSERT")) {
+      const key = String(params[0]);
+      const windowStart = Number(params[1]);
+      const current = rateLimitCounters.get(key);
+      if (!current || current.window_start_ms !== windowStart) {
+        rateLimitCounters.set(key, { window_start_ms: windowStart, count: 1 });
+      } else {
+        rateLimitCounters.set(key, { window_start_ms: windowStart, count: current.count + 1 });
+      }
+      return [{ affectedRows: 1 }];
+    }
+    // Rate limit counter: read current count
+    if (sql.includes("rate_limit_counters") && sql.includes("SELECT count")) {
+      const key = String(params[0]);
+      const counter = rateLimitCounters.get(key);
+      if (!counter) return [[]];
+      return [[{ count: counter.count }]];
+    }
+    // Rate limit counter: reset on successful login
+    if (sql.includes("rate_limit_counters") && sql.includes("DELETE")) {
+      const key = String(params[0]);
+      rateLimitCounters.delete(key);
+      return [{ affectedRows: 1 }];
+    }
+    // Auth: user lookup by username
     if (sql.includes("FROM users") && sql.includes("WHERE username =")) {
       const username = String(params?.[0] || "");
       if (username === "valid-user") {
@@ -96,6 +126,9 @@ describe("Login rate limit middleware", () => {
     process.env.LOGIN_RATE_LIMIT_WINDOW_MS = "60000";
     process.env.LOGIN_RATE_LIMIT_MAX_PER_IP = "10";
     process.env.LOGIN_RATE_LIMIT_MAX_PER_IP_USERNAME = "3";
+
+    // Reset stateful counter mock so each test starts from zero
+    rateLimitCounters.clear();
 
     poolMock.query.mockClear();
     poolMock.getConnection.mockClear();

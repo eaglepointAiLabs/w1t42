@@ -204,7 +204,7 @@ These are seeded local credentials only.
 Project root includes required acceptance test directories and one-click runner:
 
 - `unit_tests/` - unit suite wrapper (backend + frontend)
-- `API_tests/` - API functional tests for auth, follows, refunds, and staff-review permissions
+- `API_tests/` - Live smoke tests (require a running backend) covering health, auth validation, and unauthenticated-access rejections
 - `run_tests.sh` - unified runner with consolidated summary and exit code
 
 ### Prerequisites
@@ -241,9 +241,22 @@ FAILED=<number>
 
 ### Coverage notes
 
-- API tests cover normal and abnormal scenarios, including 400/401/403/404/409 paths where applicable.
-- API tests include pre/post validation for state-changing follow APIs.
-- If some business domains are not present in this repository (for example dedicated hiring/inventory modules), `API_tests` summary prints explicit `TODO_GAP` markers.
+**`API_tests/run_api_tests.sh`** (live smoke tests against a running backend):
+
+- `GET /health` → 200
+- `POST /api/v1/auth/register` with missing fields → 400
+- `GET /api/v1/follows/mine` without session → 401
+- `GET /api/v1/reviews/mine` without session → 401
+- `GET /api/v1/feed` without session → 401
+- Unknown route → 404
+
+**`backend/tests/` Vitest unit/integration tests** (no running backend required):
+
+Cover 401/403/409/429 scenarios, RBAC enforcement, per-user idempotency, review image magic-byte rejection, rate limiting, refund authorization, review constraints, feed deduplication, ledger logic, and more. Run with:
+
+```bash
+npm --prefix backend test
+```
 
 ## Project Layout
 

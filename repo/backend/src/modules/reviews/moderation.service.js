@@ -5,6 +5,15 @@ const { pool } = require("../../db/pool");
 const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg"];
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+// PNG: 8-byte magic \x89PNG\r\n\x1a\n
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+// JPEG: 3-byte SOI marker \xff\xd8\xff
+const JPEG_MAGIC = Buffer.from([0xff, 0xd8, 0xff]);
+
+function matchesMagic(buffer, magic) {
+  return buffer.length >= magic.length && buffer.slice(0, magic.length).equals(magic);
+}
+
 async function ensureUserNotBlacklisted(userId) {
   const [rows] = await pool.query(
     `
@@ -49,6 +58,13 @@ function decodeAndValidateImage({ base64Data, mimeType, sizeBytes }) {
 
   if (buffer.length > MAX_IMAGE_BYTES) {
     throw new ApiError(400, "INVALID_IMAGE_SIZE", "Decoded image exceeds 5 MB");
+  }
+
+  if (mimeType === "image/png" && !matchesMagic(buffer, PNG_MAGIC)) {
+    throw new ApiError(400, "INVALID_IMAGE_CONTENT", "File content does not match declared PNG type");
+  }
+  if (mimeType === "image/jpeg" && !matchesMagic(buffer, JPEG_MAGIC)) {
+    throw new ApiError(400, "INVALID_IMAGE_CONTENT", "File content does not match declared JPEG type");
   }
 
   return buffer;
