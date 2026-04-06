@@ -51,7 +51,7 @@ router.get("/:id/payment-status", requireAuth, validate({ params: orderIdParamSc
 });
 
 router.post("/:id/complete", requireAuth, requireRole(["coach", "support", "admin"]), validate({ params: orderIdParamSchema }), async (ctx) => {
-  const order = await markOrderCompleted(ctx.params.id, ctx.state.user.id, ctx.state.requestId);
+  const order = await markOrderCompleted(ctx.params.id, ctx.state.user.id, ctx.state.user.roles, ctx.state.requestId);
   ctx.body = successResponse(order);
 });
 

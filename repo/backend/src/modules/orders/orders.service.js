@@ -171,7 +171,8 @@ async function cancelUnpaidOrder(orderId, requestId = null) {
   }
 }
 
-async function markOrderCompleted(orderId, actorUserId = null, requestId = null) {
+async function markOrderCompleted(orderId, actorUserId = null, actorRoles = [], requestId = null) {
+  const roles = Array.isArray(actorRoles) ? actorRoles : [];
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -182,6 +183,17 @@ async function markOrderCompleted(orderId, actorUserId = null, requestId = null)
 
     if (rows[0].order_status !== "paid") {
       throw new ApiError(400, "ORDER_NOT_PAID", "Only paid orders can be completed");
+    }
+
+    // Object-level authorization: admins and support can complete any order;
+    // coaches may only complete orders where they are the assigned instructor.
+    const isAdminOrSupport = roles.includes("admin") || roles.includes("support");
+    if (!isAdminOrSupport) {
+      const isAssignedInstructor = rows[0].assigned_instructor_user_id !== null &&
+        rows[0].assigned_instructor_user_id === actorUserId;
+      if (!isAssignedInstructor) {
+        throw new ApiError(403, "FORBIDDEN", "Not authorized to complete this order");
+      }
     }
 
     await connection.query(
